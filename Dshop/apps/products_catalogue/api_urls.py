@@ -3,7 +3,7 @@ from .api_views import OrderAPIView, ProductViewSet, CartAPIView
 from rest_framework.routers import DefaultRouter
 
 router = DefaultRouter()
-router.register('products/', ProductViewSet, basename='products-api')
+router.register('products', ProductViewSet, basename='products-api')
 
 urlpatterns = [
     path('', include(router.urls)),
