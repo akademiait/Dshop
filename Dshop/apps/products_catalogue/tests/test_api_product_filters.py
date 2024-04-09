@@ -12,32 +12,14 @@ pytestmark = pytest.mark.django_db
 
 @pytest.fixture
 def named_products(products):
-    products[0].name = "J"
-    products[1].name = "A"
-    products[2].name = "B"
-    products[3].name = "I"
-    products[4].name = "G"
-    products[5].name = "C"
-    products[6].name = "F"
-    products[7].name = "H"
-    products[8].name = "E"
-    products[9].name = "D"
-    products[0].save()
-    products[1].save()
-    products[2].save()
-    products[3].save()
-    products[4].save()
-    products[5].save()
-    products[6].save()
-    products[7].save()
-    products[8].save()
-    products[9].save()
+    for prod, name in zip(products, "JABIGCFHED"):
+        prod.name = name
+        prod.save()
     return products
 
 def test_products_api_order_by_price_asc(products):
     response = APIClient().get(f"{URL}?order_by=price")
     products_data = response.data["results"]
-    print(response.data)
     assert response.status_code == 200
     assert response.data["count"] == 10
     for value, prod in enumerate(products_data, start=1):
@@ -90,26 +72,17 @@ def test_products_api_filter_by_availability(products, availability, other_avail
     assert len(response.data["results"]) == 5
     assert expected_result == api_results
 
-@pytest.mark.parametrize("availability, expected_count", [
+@pytest.mark.parametrize("target_availability, expected_count", [
     (1, 2),
     (3, 4),
     (7, 7),
     (14, 10),
 ])
-def test_products_api_filters_by_availability_days(products, availability, expected_count):
-    products[0].availability = 1
-    products[1].availability = 1
-    products[2].availability = 3
-    products[3].availability = 3
-    products[4].availability = 7
-    products[5].availability = 7
-    products[6].availability = 7
-    products[7].availability = 14
-    products[8].availability = 14
-    products[9].availability = 14
-    for prod in products:
+def test_products_api_filters_by_availability_days(products, target_availability, expected_count):
+    for prod, availability in zip(products, [1, 1, 3, 3, 7, 7, 7, 14, 14, 14]):
+        prod.availability = availability
         prod.save()
-    response = APIClient().get(f"{URL}?availability={availability}")
+    response = APIClient().get(f"{URL}?availability={target_availability}")
     assert response.status_code == 200
     assert response.data["count"] == expected_count
 
