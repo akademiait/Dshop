@@ -1,7 +1,7 @@
 import json 
 
 from django.contrib.auth.models import User
-from dj_shop_cart.cart import get_cart_class, CartItem
+from dj_shop_cart.cart import Cart, CartItem
 from django.db import models
 from django.db.models import DecimalField
 from django.utils.text import slugify
@@ -10,8 +10,6 @@ from datetime import timedelta
 from decimal import Decimal
 from django.urls import reverse
 from tinymce import models as tinymce_models
-
-Cart = get_cart_class()
 
 
 class CatalogueItemModel(models.Model):
@@ -181,32 +179,17 @@ class Order(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, editable=False)
     cart_details = models.JSONField(default=dict, editable=False)
     cart_total = models.DecimalField(max_digits=10, decimal_places=2, editable=False, default=None)
+    delivery_name = models.CharField(max_length=255, editable=False)
+    delivery_price = models.DecimalField(max_digits=5, decimal_places=2, editable=False)
+    total_sum = models.DecimalField(max_digits=10, decimal_places=2, editable=False)
 
-    @property
-    def delivery_name(self):
-        return self.delivery.name
-    
-    @property
-    def delivery_price(self):
-        return self.delivery.price
-
-    @property
-    def total_sum(self):
-        return self.delivery_price + self.cart_total
-    
     def save(self, *args, **kwargs):
-        request = kwargs.pop('request', None)
+        request = kwargs.pop('request', None)  
         cart = Cart.new(request)
-        assert cart.request == request
-        assert cart.unique_count == 0
-        assert cart.unique_count == 2
+    
         cart_items = []
         cart_item = {}
-        
-        print(f"{request=}")
-        assert len(cart) == 2
         for item in cart:
-            print("here")
             cart_item = { 
                 'Product ID': str(item.product.pk),
                 'Product': str(item.product),
@@ -218,18 +201,18 @@ class Order(models.Model):
         cart_items.append(cart_item)
         
         self.cart_details = json.dumps(cart_items)
+        self.delivery_name = self.delivery.name
+        self.delivery_price = self.delivery.price
         self.cart_total = cart.total
-        assert self.cart_total != 0
+        self.total_sum = cart.total + self.delivery.price
         super().save(*args, **kwargs)
+
 
     @classmethod
     def create_cart(cls, request, *args, **kwargs):
         instance = cls(*args, **kwargs)
         request_user = getattr(request, 'user', None)
         instance.user = request_user
-        print()
         instance.save(request=request)
-        return instance
 
-    # def create_cart(self, request, **kwargs):
-    #     pass
+        return instance
