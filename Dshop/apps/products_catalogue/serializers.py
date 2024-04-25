@@ -1,3 +1,4 @@
+import json
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from dj_shop_cart.cart import get_cart_class
@@ -76,19 +77,44 @@ class CartWriteSerializer(serializers.Serializer):
         return items
     
 
+def cart_and_delivery_to_order_data(cart, delivery, data):
+    cart_data = CartReadSerializer(cart).data
+    data["cart_details"] = json.dumps(cart_data)
+    data["delivery_name"] = delivery.name
+    data["delivery_price"] = delivery.price
+    data["cart_total"] = cart.total
+    data["total_sum"] = cart.total + delivery.price
+    return data
+
+
 class OrderSerializer(serializers.ModelSerializer):
+
+    cart = CartWriteSerializer(write_only=True, required=True)
+
+    def validate_cart(self, cart_data):
+        if len(cart_data["items"]) < 1:
+            raise serializers.ValidationError("No items")
+        return cart_data
+
+    def create(self, validated_data):
+        cart_data = validated_data.pop('cart')
+        delivery = validated_data.pop('delivery')
+        cart_serializer = CartWriteSerializer(data=cart_data, context=self.context)
+        cart_serializer.is_valid(raise_exception=True)
+        cart = cart_serializer.save()
+        order_details = cart_and_delivery_to_order_data(cart, delivery, {})
+        return Order.objects.create(delivery=delivery, **validated_data, **order_details)
+    
 
     class Meta:
         model = Order
-        fields = ['delivery',
+        fields = ['delivery', "cart",
                   'created_at','cart_details',
                   'cart_total','delivery_name',
                   'delivery_price','total_sum']
        
+        read_only_fields = ["created_at", "cart_details"
+                            "cart_total", "delivery_name",
+                            "delivery_price", "total_sum"]
 
-    def create(self, validated_data):
-        request = self.context.get('request')
-        instance = Order.create_cart(request, **validated_data)
-        return instance
-    
 
