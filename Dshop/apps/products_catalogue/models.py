@@ -1,7 +1,7 @@
 import json 
 
 from django.contrib.auth.models import User
-from dj_shop_cart.cart import Cart, CartItem
+from dj_shop_cart.cart import CartItem
 from django.db import models
 from django.db.models import DecimalField
 from django.utils.text import slugify
@@ -183,36 +183,6 @@ class Order(models.Model):
     delivery_price = models.DecimalField(max_digits=5, decimal_places=2, editable=False)
     total_sum = models.DecimalField(max_digits=10, decimal_places=2, editable=False)
 
-    def save(self, *args, **kwargs):
-        request = kwargs.pop('request', None)  
-        cart = Cart.new(request)
-    
-        cart_items = []
-        cart_item = {}
-        for item in cart:
-            cart_item = { 
-                'Product ID': str(item.product.pk),
-                'Product': str(item.product),
-                'Product-description': str(item.product.short_description),
-                'Price': float(item.price),
-                'Quantity': int(item.quantity),
-                'Subtotal': float(item.subtotal),
-                }
-        cart_items.append(cart_item)
-        
-        self.cart_details = json.dumps(cart_items)
-        self.delivery_name = self.delivery.name
-        self.delivery_price = self.delivery.price
-        self.cart_total = cart.total
-        self.total_sum = cart.total + self.delivery.price
-        super().save(*args, **kwargs)
-
-
-    @classmethod
-    def create_cart(cls, request, *args, **kwargs):
-        instance = cls(*args, **kwargs)
-        request_user = getattr(request, 'user', None)
-        instance.user = request_user
-        instance.save(request=request)
-
-        return instance
+    @property
+    def decoded_cart(self):
+        return json.loads(self.cart_details)

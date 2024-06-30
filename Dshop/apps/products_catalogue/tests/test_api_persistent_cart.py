@@ -54,6 +54,22 @@ def test_add(tv_product):
 
 
 @pytest.mark.django_db
+def test_add__make_empty_get(tv_product):
+    data = {
+        'items': [ {'product_pk': tv_product.pk, 'quantity': 10} ] 
+    }
+    api_client = APIClient()
+    add_response = api_client.post(reverse("api_cart"), data)
+    empty_response = api_client.post(reverse("api_cart_empty"))
+    get_response = api_client.get(reverse("api_cart"))
+    assert add_response.status_code == status.HTTP_201_CREATED
+    assert empty_response.status_code == status.HTTP_200_OK
+    assert get_response.status_code == status.HTTP_200_OK
+    assert_products_data(add_response.data, [tv_product], [10])
+    assert_data_empty(get_response.data)
+
+    
+@pytest.mark.django_db
 def test_add_relogin_get(tv_product):
     client = APIClient()
     user = User.objects.create_user(username='testuser', password='testpassword')
